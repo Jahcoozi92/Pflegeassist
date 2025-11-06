@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "pflegeassist-nas": {
+      "command": "node",
+      "args": [
+        "C:\\Users\\D.Göbel\\Pflegeassist\\mcp-pflegeassist-server\\index.js"
+      ],
+      "env": {
+        "NAS_PASSWORD": "IHR_NAS_PASSWORT_HIER"
+      }
+    }
+  }
+}
