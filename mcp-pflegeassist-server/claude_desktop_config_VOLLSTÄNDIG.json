@@ -1,0 +1,46 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "C:\\Users\\D.Göbel\\Documents",
+        "C:\\Users\\D.Göbel\\Downloads",
+        "C:\\Users\\D.Göbel\\Desktop",
+        "C:\\Users\\D.Göbel\\.ssh",
+        "C:\\Users\\D.Göbel\\Pflegeassist"
+      ]
+    },
+    "n8n-mcp": {
+      "command": "npx",
+      "args": [
+        "n8n-mcp"
+      ],
+      "env": {
+        "MCP_MODE": "stdio",
+        "LOG_LEVEL": "error",
+        "DISABLE_CONSOLE_OUTPUT": "true",
+        "N8N_API_URL": "https://n8n.forensikzentrum.com/",
+        "N8N_API_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1ZWYyZWZjNC02MzI3LTQ5MTUtOGFkNC02NTNjZGIzN2UxMDUiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYxNjkwNDc0fQ.m5uX0HKHXy1qmVtanhbtrMMYa7DjV_3T7zDyxelJBjk"
+      }
+    },
+    "python-office": {
+      "command": "C:\\Users\\D.Göbel\\AppData\\Roaming\\Python\\Python313\\Scripts\\mcp-server-office.exe",
+      "args": [],
+      "env": {
+        "MCP_MODE": "stdio",
+        "ALLOWED_DIRECTORIES": "C:\\Users\\D.Göbel\\Desktop\\MediFox Installer,D:\\Bearbeitung\\QZ Wundmanagement,C:\\Users\\D.Göbel\\Downloads,C:\\Users\\D.Göbel\\Documents"
+      }
+    },
+    "pflegeassist-nas": {
+      "command": "node",
+      "args": [
+        "C:\\Users\\D.Göbel\\Pflegeassist\\mcp-pflegeassist-server\\index.js"
+      ],
+      "env": {
+        "NAS_PASSWORD": "IHR_NAS_SSH_PASSWORT_HIER_EINTRAGEN"
+      }
+    }
+  }
+}
