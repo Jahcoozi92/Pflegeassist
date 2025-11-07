@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PflegeAssist Pro - Organisatorische Entscheidungshilfe</title>
+    <meta name="description" content="Evidenzbasierte Entscheidungshilfe für organisatorische Situationen">
+
+    <!-- React & Dependencies -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .animate-fade-in { animation: fadeIn 0.4s ease-in-out; }
+        .animate-slide-up { animation: slideUp 0.4s ease-out; }
+
+        .gradient-border {
+            background: linear-gradient(45deg, #3b82f6, #10b981, #8b5cf6);
+            padding: 2px;
+            border-radius: 12px;
+        }
+        .gradient-border > div {
+            background: #1e293b;
+            border-radius: 10px;
+        }
+
+        #app-loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+            transition: opacity 0.5s ease-out;
+        }
+        #app-loading.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(59, 130, 246, 0.3);
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0f172a;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+    <div id="app-loading">
+        <div class="loading-spinner"></div>
+        <p style="color: #94a3b8; font-size: 18px;">PflegeAssist Pro wird geladen...</p>
+    </div>
+
+    <div id="root"></div>
+
+    <script>
+        window.hideLoadingScreen = () => {
+            const loadingEl = document.getElementById('app-loading');
+            if (loadingEl) {
+                loadingEl.classList.add('fade-out');
+                setTimeout(() => loadingEl.style.display = 'none', 500);
+            }
+        };
+    </script>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // ==================== ICONS ====================
+        const Icon = ({ name, className = "w-5 h-5", ...props }) => {
+            const icons = {
+                AlertTriangle: (
+                    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                ),
+                CheckCircle: (
+                    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                ),
+                ChevronLeft: (
+                    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                ),
+                ChevronRight: (
+                    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                ),
+                Phone: (
+                    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                ),
+                FileText: (
+                    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                ),
+                Home: (
+                    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                    </svg>
+                ),
+                Clock: (
+                    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 6v6l4 2"/>
+                    </svg>
+                ),
+                Info: (
+                    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 16v-4M12 8h.01"/>
+                    </svg>
+                ),
+                Shield: (
+                    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                ),
+                Users: (
+                    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                ),
+                Pill: (
+                    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M3 20h18" />
+                    </svg>
+                ),
+                Heart: (
+                    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                ),
+                Check: (
+                    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                ),
+                X: (
+                    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                ),
+                Calendar: (
+                    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                )
+            };
+
+            return icons[name] || <div className={className}>?</div>;
+        };
+
+        // ==================== DECISION FLOWS DATA ====================
+        const decisionFlows = {
+            // NEU: Bewohner hat Beschwerden
+            bewohner_beschwerde: {
+                id: 'bewohner_beschwerde',
+                title: 'Bewohner hat Beschwerden (Schmerzen/Unwohlsein)',
+                icon: 'Heart',
+                color: 'red',
+                steps: {
+                    start: {
+                        id: 'start',
+                        type: 'question',
+                        question: 'Bewohner hat Beschwerden - was tun?',
+                        info: 'Systematisches Vorgehen: Erst Bedarfsmedikation prüfen, dann weitere Maßnahmen',
+                        options: [
+                            {
+                                text: 'Schmerzen',
+                                icon: 'AlertTriangle',
+                                next: 'check_bedarf',
+                                color: 'red'
+                            },
+                            {
+                                text: 'Unwohlsein/Übelkeit',
+                                icon: 'Heart',
+                                next: 'check_bedarf',
+                                color: 'orange'
+                            },
+                            {
+                                text: 'Andere Beschwerden',
+                                icon: 'Info',
+                                next: 'check_bedarf',
+                                color: 'yellow'
+                            }
+                        ]
+                    },
+                    check_bedarf: {
+                        id: 'check_bedarf',
+                        type: 'action',
+                        title: '🔍 Schritt 1: System prüfen',
+                        priority: 'high',
+                        actions: [
+                            {
+                                title: 'Bedarfsmedikation im System checken',
+                                items: [
+                                    'Medifox öffnen',
+                                    'Bewohner-Akte aufrufen',
+                                    'Bedarfsmedikationen anschauen',
+                                    'Hat der Bewohner passende Bedarfsmedikation?'
+                                ],
+                                time: '2 Min',
+                                icon: 'FileText',
+                                highlight: true
+                            }
+                        ],
+                        next: [
+                            {
+                                text: 'JA - Bewohner hat Bedarfsmedikation',
+                                icon: 'Check',
+                                next: 'give_bedarf',
+                                color: 'green'
+                            },
+                            {
+                                text: 'NEIN - Keine Bedarfsmedikation vorhanden',
+                                icon: 'X',
+                                next: 'no_bedarf',
+                                color: 'red'
+                            }
+                        ]
+                    },
+                    give_bedarf: {
+                        id: 'give_bedarf',
+                        type: 'action',
+                        title: '💊 Bedarfsmedikation verabreichen',
+                        priority: 'high',
+                        actions: [
+                            {
+                                title: '1. Medikament vorbereiten',
+                                items: [
+                                    'Richtige Bedarfsmedikation holen',
+                                    'Dosierung beachten',
+                                    'Mit Bewohner besprechen'
+                                ],
+                                time: '5 Min',
+                                icon: 'Pill'
+                            },
+                            {
+                                title: '2. Verabreichung dokumentieren',
+                                items: [
+                                    'Uhrzeit notieren',
+                                    'Welches Medikament',
+                                    'Grund der Gabe',
+                                    'In Medifox eintragen'
+                                ],
+                                time: '2 Min',
+                                icon: 'FileText'
+                            },
+                            {
+                                title: '3. Wirkungskontrolle planen',
+                                items: [
+                                    '⏰ Nach 30-60 Minuten wiederkommen',
+                                    'Timer stellen oder notieren',
+                                    'Bewohner informieren'
+                                ],
+                                time: '1 Min',
+                                icon: 'Clock',
+                                urgent: true
+                            }
+                        ],
+                        tips: [
+                            '💡 Wirkungskontrolle ist PFLICHT!',
+                            '💡 Timer hilft, es nicht zu vergessen'
+                        ],
+                        next: ['wirkungskontrolle']
+                    },
+                    wirkungskontrolle: {
+                        id: 'wirkungskontrolle',
+                        type: 'action',
+                        title: '✅ Wirkungskontrolle nach 30-60 Min',
+                        priority: 'high',
+                        actions: [
+                            {
+                                title: 'Zum Bewohner gehen',
+                                items: [
+                                    '"Wie geht es Ihnen jetzt?"',
+                                    '"Sind die Schmerzen besser?"',
+                                    '"Fühlen Sie sich wohler?"',
+                                    'Bewohner berichten lassen'
+                                ],
+                                time: '5 Min',
+                                icon: 'Heart',
+                                highlight: true
+                            },
+                            {
+                                title: 'Ergebnis dokumentieren',
+                                items: [
+                                    'Wirkung eingetreten? Ja/Nein',
+                                    'Bewohner-Aussage notieren',
+                                    'In Medifox dokumentieren'
+                                ],
+                                time: '2 Min',
+                                icon: 'FileText'
+                            }
+                        ],
+                        next: [
+                            {
+                                text: 'Beschwerde behoben ✅',
+                                icon: 'Check',
+                                next: 'resolved',
+                                color: 'green'
+                            },
+                            {
+                                text: 'Keine Besserung ❌',
+                                icon: 'X',
+                                next: 'no_improvement',
+                                color: 'red'
+                            }
+                        ]
+                    },
+                    resolved: {
+                        id: 'resolved',
+                        type: 'action',
+                        title: '✅ Problem gelöst!',
+                        priority: 'low',
+                        actions: [
+                            {
+                                title: 'Abschluss',
+                                items: [
+                                    '✅ Bewohner geht es besser',
+                                    '✅ Bedarfsmedikation hat gewirkt',
+                                    '✅ Dokumentation vollständig',
+                                    'Gut gemacht!'
+                                ],
+                                icon: 'CheckCircle'
+                            }
+                        ],
+                        next: []
+                    },
+                    no_improvement: {
+                        id: 'no_improvement',
+                        type: 'action',
+                        title: '⚠️ Keine Besserung - Arzt kontaktieren',
+                        priority: 'high',
+                        actions: [
+                            {
+                                title: '1. Arzt anrufen',
+                                items: [
+                                    '📞 Hausarzt (werktags) oder',
+                                    '📞 116117 (Wochenende/Nacht)',
+                                    'Situation schildern',
+                                    'Bereits gegebene Medikation nennen'
+                                ],
+                                time: '10 Min',
+                                icon: 'Phone',
+                                contact: '116117'
+                            },
+                            {
+                                title: '2. Arzt verschreibt neues Medikament?',
+                                items: [
+                                    'Rezept erhalten (Fax/E-Rezept)?',
+                                    'Am Wochenende: Mini Car Service nutzen!'
+                                ],
+                                icon: 'Pill'
+                            }
+                        ],
+                        next: ['weekend_medication']
+                    },
+                    no_bedarf: {
+                        id: 'no_bedarf',
+                        type: 'action',
+                        title: '🤔 Keine Bedarfsmedikation - was tun?',
+                        priority: 'high',
+                        actions: [
+                            {
+                                title: '1. Fachliche Einschätzung',
+                                items: [
+                                    'Wie stark sind die Beschwerden?',
+                                    'Ist es ein Notfall? → 112',
+                                    'Kann es bis zum Arztbesuch warten?',
+                                    'Alternative Maßnahmen möglich?'
+                                ],
+                                time: '5 Min',
+                                icon: 'Shield'
+                            },
+                            {
+                                title: '2. Arzt kontaktieren',
+                                items: [
+                                    '📞 Hausarzt (werktags) oder',
+                                    '📞 116117 (Wochenende/Nacht)',
+                                    'Beschwerden schildern',
+                                    'Nach Bedarfsmedikation fragen'
+                                ],
+                                time: '10 Min',
+                                icon: 'Phone',
+                                contact: '116117'
+                            },
+                            {
+                                title: '3. Arzt verschreibt Medikament?',
+                                items: [
+                                    'Am Wochenende: Mini Car Service nutzen!',
+                                    'Bewohner muss NICHT zahlen',
+                                    'Kooperation mit Einrichtung'
+                                ],
+                                icon: 'Pill',
+                                highlight: true
+                            }
+                        ],
+                        next: ['weekend_medication']
+                    },
+                    weekend_medication: {
+                        id: 'weekend_medication',
+                        type: 'action',
+                        title: '🚕 Medikament am Wochenende besorgen',
+                        priority: 'high',
+                        actions: [
+                            {
+                                title: '📞 Mini Car Kohlscheid anrufen',
+                                items: [
+                                    '☎️ Telefon: 02407 2044',
+                                    '📍 24h erreichbar!',
+                                    '"Wir brauchen ein Medikament aus der Notapotheke"',
+                                    'Rezept per Fax/Foto senden'
+                                ],
+                                time: '5 Min',
+                                icon: 'Phone',
+                                contact: 'Mini Car: 02407 2044',
+                                highlight: true,
+                                urgent: true
+                            },
+                            {
+                                title: 'So funktioniert es:',
+                                items: [
+                                    '1. Mini Car holt Medikament aus Notapotheke',
+                                    '2. Lieferung in die Einrichtung (30-60 Min)',
+                                    '3. ✅ Kosten trägt die Einrichtung',
+                                    '4. ✅ Bewohner zahlt NICHTS',
+                                    '💡 Es besteht eine Kooperation!'
+                                ],
+                                time: '30-60 Min',
+                                icon: 'CheckCircle'
+                            },
+                            {
+                                title: 'Bewohner beruhigen',
+                                items: [
+                                    '"Das Medikament wird gleich geholt"',
+                                    '"Sie müssen nichts bezahlen"',
+                                    '"In ca. 1 Stunde ist es da"',
+                                    'Bewohner nicht alleine lassen'
+                                ],
+                                icon: 'Heart'
+                            }
+                        ],
+                        tips: [
+                            '💡 Nummer 02407 2044 im Handy speichern!',
+                            '💡 Bewohner hat oft Angst vor Kosten',
+                            '💡 Klar kommunizieren: Kooperation = keine Kosten für Bewohner'
+                        ],
+                        next: []
+                    }
+                }
+            },
+
+            // Vereinfachte bestehende Flows...
+            personalausfall: {
+                id: 'personalausfall',
+                title: 'Personalausfall am Wochenende',
+                icon: 'Users',
+                color: 'orange',
+                steps: {
+                    start: {
+                        id: 'start',
+                        type: 'question',
+                        question: 'Krankmeldung eingegangen - für wann?',
+                        info: 'LEITSATZ: Dienst nicht abdeckbar = Rufbereitschaft informieren',
+                        options: [
+                            {
+                                text: 'HEUTE krank',
+                                icon: 'AlertTriangle',
+                                next: 'check_coverage',
+                                color: 'red'
+                            },
+                            {
+                                text: 'MORGEN/SPÄTER krank',
+                                icon: 'Clock',
+                                next: 'tomorrow',
+                                color: 'yellow'
+                            }
+                        ]
+                    },
+                    check_coverage: {
+                        id: 'check_coverage',
+                        type: 'question',
+                        question: 'Ist der Dienst noch abdeckbar?',
+                        info: 'Alle Möglichkeiten prüfen: Andere Wohnbereiche, BZ↔WP, Mitarbeiter aus Frei',
+                        options: [
+                            {
+                                text: 'JA - abdeckbar',
+                                icon: 'Check',
+                                next: 'organize',
+                                color: 'green'
+                            },
+                            {
+                                text: 'NEIN - NICHT abdeckbar',
+                                icon: 'X',
+                                next: 'call_rb',
+                                color: 'red'
+                            }
+                        ]
+                    },
+                    organize: {
+                        id: 'organize',
+                        type: 'action',
+                        title: '✅ Selbst organisieren',
+                        priority: 'medium',
+                        actions: [
+                            {
+                                title: 'Vertretung organisieren',
+                                items: [
+                                    'Andere Wohnbereiche anfragen',
+                                    'BZ ↔ WP gegenseitig helfen',
+                                    'Mitarbeiter aus Frei kontaktieren',
+                                    'Mail per Medifox an PDL'
+                                ],
+                                time: '20 Min',
+                                icon: 'Users',
+                                highlight: true
+                            }
+                        ],
+                        tips: ['💡 BZ und WP helfen sich gegenseitig'],
+                        next: []
+                    },
+                    call_rb: {
+                        id: 'call_rb',
+                        type: 'action',
+                        title: '📞 Rufbereitschaft anrufen',
+                        priority: 'critical',
+                        actions: [
+                            {
+                                title: 'SOFORT Rufbereitschaft informieren',
+                                items: [
+                                    '📞 Nummer laut Aushang',
+                                    'BZ: PDL-Büro | WP: Büro Indetal',
+                                    'Situation schildern',
+                                    'Bereits geprüfte Optionen nennen'
+                                ],
+                                time: 'Sofort',
+                                icon: 'Phone',
+                                contact: 'Rufbereitschaft',
+                                urgent: true
+                            }
+                        ],
+                        next: []
+                    },
+                    tomorrow: {
+                        id: 'tomorrow',
+                        type: 'action',
+                        title: 'Krankmeldung für morgen',
+                        priority: 'medium',
+                        actions: [
+                            {
+                                title: 'Zeit nutzen',
+                                items: [
+                                    'Heute schon organisieren',
+                                    'Vertretung suchen',
+                                    'Bei Erfolg: Mail an PDL',
+                                    'Bei Misserfolg: Rufbereitschaft'
+                                ],
+                                time: '30 Min',
+                                icon: 'Clock'
+                            }
+                        ],
+                        next: []
+                    }
+                }
+            },
+
+            notfall: {
+                id: 'notfall',
+                title: 'Notfall - RTW rufen?',
+                icon: 'AlertTriangle',
+                color: 'red',
+                steps: {
+                    start: {
+                        id: 'start',
+                        type: 'question',
+                        question: 'Notfallsituation?',
+                        info: 'Sie entscheiden allein! Im Zweifel IMMER 112 rufen!',
+                        options: [
+                            {
+                                text: 'JA - eindeutiger Notfall',
+                                icon: 'AlertTriangle',
+                                next: 'call_112',
+                                color: 'red'
+                            },
+                            {
+                                text: 'Unsicher',
+                                icon: 'Info',
+                                next: 'call_112_unsure',
+                                color: 'orange'
+                            },
+                            {
+                                text: 'NEIN - kein Notfall',
+                                icon: 'Shield',
+                                next: 'no_emergency',
+                                color: 'green'
+                            }
+                        ]
+                    },
+                    call_112: {
+                        id: 'call_112',
+                        type: 'action',
+                        title: '🚨 SOFORT 112 anrufen!',
+                        priority: 'critical',
+                        actions: [
+                            {
+                                title: 'Notruf absetzen',
+                                items: [
+                                    '📞 112 wählen',
+                                    'WO? Adresse, Etage, Zimmer',
+                                    'WAS? Symptome',
+                                    'Erste Hilfe leisten'
+                                ],
+                                time: 'SOFORT',
+                                icon: 'Phone',
+                                contact: '112',
+                                urgent: true
+                            }
+                        ],
+                        tips: ['⚠️ Lieber einmal zu viel als zu wenig!'],
+                        next: []
+                    },
+                    call_112_unsure: {
+                        id: 'call_112_unsure',
+                        type: 'action',
+                        title: 'Im Zweifel FÜR Sicherheit',
+                        priority: 'high',
+                        actions: [
+                            {
+                                title: 'Unsicher = Notfall!',
+                                items: [
+                                    '📞 112 anrufen',
+                                    'Leitstelle berät Sie',
+                                    'Sie haben richtig gehandelt'
+                                ],
+                                time: 'Sofort',
+                                icon: 'Phone',
+                                contact: '112',
+                                urgent: true
+                            }
+                        ],
+                        next: []
+                    },
+                    no_emergency: {
+                        id: 'no_emergency',
+                        type: 'action',
+                        title: 'Hausarzt kontaktieren',
+                        priority: 'low',
+                        actions: [
+                            {
+                                title: 'Arzt anrufen',
+                                items: [
+                                    'Hausarzt (werktags)',
+                                    '116117 (Wochenende)',
+                                    'Bewohner versorgen'
+                                ],
+                                time: '10 Min',
+                                icon: 'Phone',
+                                contact: '116117'
+                            }
+                        ],
+                        next: []
+                    }
+                }
+            }
+        };
+
+        // ==================== MAIN APP ====================
+        const PflegeAssistPro = () => {
+            const [currentScreen, setCurrentScreen] = useState('dashboard');
+            const [currentFlow, setCurrentFlow] = useState(null);
+            const [currentStep, setCurrentStep] = useState(null);
+            const [stepHistory, setStepHistory] = useState([]);
+
+            useEffect(() => {
+                setTimeout(() => window.hideLoadingScreen(), 500);
+            }, []);
+
+            const startFlow = (flowId) => {
+                const flow = decisionFlows[flowId];
+                if (flow) {
+                    setCurrentFlow(flow);
+                    setCurrentStep(flow.steps.start);
+                    setStepHistory([]);
+                    setCurrentScreen('flow');
+                }
+            };
+
+            const navigateToStep = (stepId) => {
+                if (currentFlow && currentFlow.steps[stepId]) {
+                    setStepHistory([...stepHistory, currentStep.id]);
+                    setCurrentStep(currentFlow.steps[stepId]);
+                }
+            };
+
+            const goBack = () => {
+                if (stepHistory.length > 0) {
+                    const previousStepId = stepHistory[stepHistory.length - 1];
+                    setCurrentStep(currentFlow.steps[previousStepId]);
+                    setStepHistory(stepHistory.slice(0, -1));
+                }
+            };
+
+            const exitFlow = () => {
+                setCurrentScreen('dashboard');
+                setCurrentFlow(null);
+                setCurrentStep(null);
+                setStepHistory([]);
+            };
+
+            // Render Dashboard
+            const renderDashboard = () => (
+                <div className="min-h-screen bg-slate-900 pb-24 animate-fade-in">
+                    <div className="bg-gradient-to-br from-slate-800 to-slate-900 border-b border-slate-700 px-6 py-8">
+                        <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-green-400 bg-clip-text text-transparent mb-2">
+                            PflegeAssist Pro
+                        </h1>
+                        <p className="text-slate-400 text-lg">Vereinfachte Entscheidungshilfe</p>
+                    </div>
+
+                    <div className="px-6 py-8 space-y-6">
+                        {Object.values(decisionFlows).map((flow) => (
+                            <button
+                                key={flow.id}
+                                onClick={() => startFlow(flow.id)}
+                                className={`w-full p-6 rounded-xl border-2 transition-all hover:scale-[1.02] text-left ${
+                                    flow.color === 'red' ? 'bg-red-900/20 border-red-600/50' :
+                                    flow.color === 'orange' ? 'bg-orange-900/20 border-orange-600/50' :
+                                    'bg-blue-900/20 border-blue-600/50'
+                                }`}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-4">
+                                        <div className="p-3 bg-black/20 rounded-xl">
+                                            <Icon name={flow.icon} className="w-8 h-8" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xl font-bold text-white">{flow.title}</h3>
+                                            <p className="text-slate-300 text-sm">Einfache Anleitung</p>
+                                        </div>
+                                    </div>
+                                    <Icon name="ChevronRight" className="w-6 h-6 text-slate-400" />
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            );
+
+            // Render Flow (vereinfacht)
+            const renderFlow = () => {
+                if (!currentFlow || !currentStep) return null;
+
+                const isQuestionStep = currentStep.type === 'question';
+                const isActionStep = currentStep.type === 'action';
+
+                return (
+                    <div className="min-h-screen bg-slate-900 pb-24 animate-fade-in">
+                        <div className="bg-gradient-to-r from-slate-800 to-slate-900 border-b border-slate-700 px-6 py-4 sticky top-0 z-10">
+                            <div className="flex items-center justify-between">
+                                <button onClick={stepHistory.length > 0 ? goBack : exitFlow} className="p-2 bg-slate-700 rounded-lg">
+                                    <Icon name="ChevronLeft" className="w-5 h-5" />
+                                </button>
+                                <div className="flex-1 mx-4">
+                                    <h2 className="text-lg font-bold text-white">{currentFlow.title}</h2>
+                                </div>
+                                <button onClick={exitFlow} className="px-4 py-2 bg-red-600 rounded-lg text-sm">
+                                    Beenden
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="px-6 py-6">
+                            {isQuestionStep && (
+                                <div className="space-y-6">
+                                    <div className="bg-slate-800 rounded-xl p-6">
+                                        <h3 className="text-2xl font-bold text-white mb-3">{currentStep.question}</h3>
+                                        {currentStep.info && (
+                                            <div className="flex items-start space-x-2 text-slate-300 text-sm bg-blue-900/20 rounded-lg p-3 mt-3">
+                                                <Icon name="Info" className="w-5 h-5 text-blue-400 flex-shrink-0" />
+                                                <p>{currentStep.info}</p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        {currentStep.options.map((option, index) => (
+                                            <button
+                                                key={index}
+                                                onClick={() => navigateToStep(option.next)}
+                                                className={`w-full p-5 rounded-xl border-2 hover:scale-[1.02] text-left ${
+                                                    option.color === 'red' ? 'bg-red-900/20 border-red-600/50' :
+                                                    option.color === 'orange' ? 'bg-orange-900/20 border-orange-600/50' :
+                                                    option.color === 'yellow' ? 'bg-yellow-900/20 border-yellow-500/50' :
+                                                    option.color === 'green' ? 'bg-green-900/20 border-green-600/50' :
+                                                    'bg-blue-900/20 border-blue-600/50'
+                                                }`}
+                                            >
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center space-x-4">
+                                                        <Icon name={option.icon} className="w-6 h-6" />
+                                                        <span className="text-lg font-semibold text-white">{option.text}</span>
+                                                    </div>
+                                                    <Icon name="ChevronRight" className="w-5 h-5" />
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {isActionStep && (
+                                <div className="space-y-6">
+                                    <div className={`p-6 rounded-xl border-2 ${
+                                        currentStep.priority === 'critical' ? 'bg-red-900/30 border-red-600' :
+                                        currentStep.priority === 'high' ? 'bg-orange-900/30 border-orange-600' :
+                                        'bg-blue-900/30 border-blue-600'
+                                    }`}>
+                                        <h3 className="text-2xl font-bold text-white">{currentStep.title}</h3>
+                                    </div>
+
+                                    {currentStep.actions.map((action, index) => (
+                                        <div key={index} className={`bg-slate-800 border rounded-xl p-6 ${
+                                            action.highlight ? 'border-green-500/50' :
+                                            action.urgent ? 'border-red-500/50' :
+                                            'border-slate-600'
+                                        }`}>
+                                            <h4 className="text-lg font-bold text-white mb-3">{action.title}</h4>
+                                            <div className="space-y-2">
+                                                {action.items.map((item, i) => (
+                                                    <div key={i} className="flex items-start space-x-2">
+                                                        <Icon name="CheckCircle" className="w-4 h-4 text-green-400 flex-shrink-0 mt-1" />
+                                                        <span className="text-slate-300 text-sm">{item}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            {action.contact && (
+                                                <div className="mt-3">
+                                                    <div className="px-4 py-2 bg-green-600 rounded-lg text-sm inline-flex items-center space-x-2">
+                                                        <Icon name="Phone" className="w-4 h-4" />
+                                                        <span>{action.contact}</span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+
+                                    {currentStep.tips && (
+                                        <div className="bg-green-900/20 border border-green-600/50 rounded-xl p-5">
+                                            {currentStep.tips.map((tip, i) => (
+                                                <p key={i} className="text-slate-300 text-sm">{tip}</p>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {currentStep.next && currentStep.next.length > 0 && (
+                                        <div className="space-y-3">
+                                            <h4 className="font-bold text-white">Weiter:</h4>
+                                            {currentStep.next.map((option, index) => {
+                                                const isString = typeof option === 'string';
+                                                const nextStepId = isString ? option : option.next;
+                                                const nextStep = currentFlow.steps[nextStepId];
+
+                                                return (
+                                                    <button
+                                                        key={index}
+                                                        onClick={() => navigateToStep(nextStepId)}
+                                                        className={`w-full p-4 rounded-xl border-2 hover:scale-[1.02] text-left ${
+                                                            !isString && option.color === 'green' ? 'bg-green-900/20 border-green-600/50' :
+                                                            !isString && option.color === 'red' ? 'bg-red-900/20 border-red-600/50' :
+                                                            'bg-blue-900/20 border-blue-600/50'
+                                                        }`}
+                                                    >
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="font-semibold text-white">
+                                                                {isString ? (nextStep ? nextStep.title || nextStep.question : 'Weiter') : option.text}
+                                                            </span>
+                                                            <Icon name="ChevronRight" className="w-5 h-5" />
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+
+                                    {(!currentStep.next || currentStep.next.length === 0) && (
+                                        <button onClick={exitFlow} className="w-full py-4 bg-green-600 rounded-xl font-bold text-lg">
+                                            ✓ Abschließen
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="relative">
+                    {currentScreen === 'dashboard' && renderDashboard()}
+                    {currentScreen === 'flow' && renderFlow()}
+
+                    {currentScreen !== 'flow' && (
+                        <div className="fixed bottom-0 left-0 right-0 bg-slate-900/95 border-t border-slate-700">
+                            <div className="grid grid-cols-2 text-center">
+                                <button onClick={() => setCurrentScreen('dashboard')} className="py-4 text-blue-400 bg-slate-800">
+                                    <Icon name="Home" className="w-6 h-6 mx-auto mb-1" />
+                                    <span className="text-xs">Übersicht</span>
+                                </button>
+                                <button onClick={() => alert('Mini Car: 02407 2044')} className="py-4 text-slate-400 hover:text-white">
+                                    <Icon name="Phone" className="w-6 h-6 mx-auto mb-1" />
+                                    <span className="text-xs">Mini Car</span>
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        console.log('Mounting PflegeAssist Pro V3...');
+        ReactDOM.render(<PflegeAssistPro />, document.getElementById('root'));
+        console.log('✓ Application V3 mounted!');
+    </script>
+</body>
+</html>
